@@ -37,9 +37,9 @@ function buildOrderDetails(to, referenceId) {
                 amount: PLAN,
                 quantity: 1,
                 country_of_origin: 'IN',
-                importer_name: 'Demo Merchant',
+                importer_name: 'Wheelz Tracker',
                 importer_address: {
-                  address_line1: '1 Demo Street',
+                  address_line1: 'Operations Hub',
                   city: 'Mumbai',
                   zone_code: 'MH',
                   postal_code: '400001',

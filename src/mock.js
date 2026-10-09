@@ -12,7 +12,7 @@ const PLANS = [
 ];
 
 function upiLink(referenceId) {
-  return `upi://pay?pa=mockdemo@upi&pn=DemoMerchant&mc=4814&purpose=00&tr=${referenceId}`;
+  return `upi://pay?pa=wheelztracker@upi&pn=WheelzTracker&mc=4814&purpose=00&tr=${referenceId}`;
 }
 
 function matchPlan(text) {
@@ -40,7 +40,7 @@ function buildMenu(to) {
     interactive: {
       type: 'list',
       header: { type: 'text', text: 'Wheelz Tracker' },
-      body: { text: 'Pick a renewal, then pay. Nothing is charged in this demo.' },
+      body: { text: 'Pick a renewal, then pay to keep Wheelz Tracker active.' },
       footer: { text: 'Or reply 1, 2, or 3' },
       action: {
         button: 'View plans',
@@ -69,9 +69,9 @@ function buildMockCheckout(to, referenceId, plan = PLANS[1]) {
     interactive: {
       type: 'order_details',
       body: {
-        text: `${plan.name} — ${plan.title}. Tap Review and Pay. This demo does not collect money.`,
+        text: `${plan.name} — ${plan.title}. Tap Review and Pay to renew.`,
       },
-      footer: { text: 'Reply paid to finish. No charge.' },
+      footer: { text: 'Reply paid after payment.' },
       action: {
         name: 'review_and_pay',
         parameters: {
@@ -88,9 +88,9 @@ function buildMockCheckout(to, referenceId, plan = PLANS[1]) {
                 amount,
                 quantity: 1,
                 country_of_origin: 'IN',
-                importer_name: 'Demo Merchant',
+                importer_name: 'Wheelz Tracker',
                 importer_address: {
-                  address_line1: '1 Demo Street',
+                  address_line1: 'Operations Hub',
                   city: 'Mumbai',
                   zone_code: 'MH',
                   postal_code: '400001',
@@ -116,9 +116,9 @@ function buildPayButton(to, plan = PLANS[1]) {
     interactive: {
       type: 'button',
       body: {
-        text: `${plan.name} — ${plan.title}.\nTap Pay to confirm this demo renewal. Nothing is charged.`,
+        text: `${plan.name} — ${plan.title}.\nTap Pay to renew Wheelz Tracker.`,
       },
-      footer: { text: 'Demo only. No charge.' },
+      footer: { text: 'Renews your Wheelz Tracker access.' },
       action: {
         buttons: [{ type: 'reply', reply: { id: PAY_BUTTON_ID, title: `Pay ${plan.title.split(' ')[0]}` } }],
       },

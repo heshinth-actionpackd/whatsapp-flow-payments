@@ -10,7 +10,7 @@ function isMock() {
 }
 
 function configurationName() {
-  return blank(process.env.PAYMENT_CONFIG) ? 'demo-config' : process.env.PAYMENT_CONFIG;
+  return blank(process.env.PAYMENT_CONFIG) ? 'wheelz-config' : process.env.PAYMENT_CONFIG;
 }
 
 module.exports = { blank, isMock, configurationName };

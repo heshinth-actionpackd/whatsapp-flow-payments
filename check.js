@@ -32,7 +32,7 @@ assert.strictEqual(mock.interactive.action.name, 'review_and_pay');
 assert.strictEqual(mockParams.payment_settings[0].type, 'upi_intent_link');
 assert.strictEqual(mockParams.reference_id, 'ORD1');
 assert.strictEqual(mockParams.payment_settings[0].upi_intent_link.link, upiLink('ORD1'));
-assert.ok(upiLink('ORD1').includes('pa=mockdemo@upi'));
+assert.ok(upiLink('ORD1').includes('pa=wheelztracker@upi'));
 assert.ok(!upiLink('ORD1').includes('am='));
 assert.strictEqual(matchPlan('2').id, 'plan_499');
 assert.strictEqual(matchPlan('999').value, 99900);
