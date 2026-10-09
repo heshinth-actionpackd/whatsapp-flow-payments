@@ -1,16 +1,66 @@
 const { postMessage } = require('./graph');
 const { sendOrderStatus } = require('./orderStatus');
 
-const PAY_BUTTON_ID = 'pay_499';
-const PLAN = { value: 49900, offset: 100 };
+const PAY_BUTTON_ID = 'pay';
 const NO_TAX = { value: 0, offset: 100, description: 'Included' };
 const pending = new Map();
+
+const PLANS = [
+  { id: 'plan_199', title: '₹199 · 28 days', description: 'Starter renewal', name: 'Wheelz Tracker Starter', days: 28, value: 19900 },
+  { id: 'plan_499', title: '₹499 · 28 days', description: 'Standard renewal', name: 'Wheelz Tracker Standard', days: 28, value: 49900 },
+  { id: 'plan_999', title: '₹999 · 84 days', description: 'Extended renewal', name: 'Wheelz Tracker Extended', days: 84, value: 99900 },
+];
 
 function upiLink(referenceId) {
   return `upi://pay?pa=mockdemo@upi&pn=DemoMerchant&mc=4814&purpose=00&tr=${referenceId}`;
 }
 
-function buildMockCheckout(to, referenceId) {
+function matchPlan(text) {
+  const raw = String(text || '').trim().toLowerCase();
+  const byId = PLANS.find((plan) => plan.id === raw);
+  if (byId) return byId;
+  const n = raw.replace(/[₹,\s]/g, '');
+  if (n === '1' || n === '199') return PLANS[0];
+  if (n === '2' || n === '499') return PLANS[1];
+  if (n === '3' || n === '999') return PLANS[2];
+  return null;
+}
+
+function receiptText(plan) {
+  if (!plan) return 'Renewal successful! Your Wheelz Tracker plan is now active.';
+  return `Renewal successful! ${plan.name} is active for ${plan.days} days.`;
+}
+
+function buildMenu(to) {
+  return {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to,
+    type: 'interactive',
+    interactive: {
+      type: 'list',
+      header: { type: 'text', text: 'Wheelz Tracker' },
+      body: { text: 'Pick a renewal, then pay. Nothing is charged in this demo.' },
+      footer: { text: 'Or reply 1, 2, or 3' },
+      action: {
+        button: 'View plans',
+        sections: [
+          {
+            title: 'Renewals',
+            rows: PLANS.map((plan) => ({
+              id: plan.id,
+              title: plan.title,
+              description: plan.description,
+            })),
+          },
+        ],
+      },
+    },
+  };
+}
+
+function buildMockCheckout(to, referenceId, plan = PLANS[1]) {
+  const amount = { value: plan.value, offset: 100 };
   return {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
@@ -19,7 +69,7 @@ function buildMockCheckout(to, referenceId) {
     interactive: {
       type: 'order_details',
       body: {
-        text: 'Airtel ₹499 Prepaid Plan — 2.5GB/day. Tap Review and Pay. This demo does not collect money.',
+        text: `${plan.name} — ${plan.title}. Tap Review and Pay. This demo does not collect money.`,
       },
       footer: { text: 'Reply paid to finish. No charge.' },
       action: {
@@ -29,13 +79,13 @@ function buildMockCheckout(to, referenceId) {
           type: 'digital-goods',
           payment_settings: [{ type: 'upi_intent_link', upi_intent_link: { link: upiLink(referenceId) } }],
           currency: 'INR',
-          total_amount: PLAN,
+          total_amount: amount,
           order: {
             status: 'pending',
             items: [
               {
-                name: 'Airtel ₹499 Prepaid Plan',
-                amount: PLAN,
+                name: plan.name,
+                amount,
                 quantity: 1,
                 country_of_origin: 'IN',
                 importer_name: 'Demo Merchant',
@@ -48,7 +98,7 @@ function buildMockCheckout(to, referenceId) {
                 },
               },
             ],
-            subtotal: PLAN,
+            subtotal: amount,
             tax: NO_TAX,
           },
         },
@@ -57,7 +107,7 @@ function buildMockCheckout(to, referenceId) {
   };
 }
 
-function buildPayButton(to) {
+function buildPayButton(to, plan = PLANS[1]) {
   return {
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
@@ -66,11 +116,11 @@ function buildPayButton(to) {
     interactive: {
       type: 'button',
       body: {
-        text: 'Airtel ₹499 Prepaid Plan — 2.5GB/day.\nThis test number cannot open the WhatsApp payment screen, so this button stands in for it.',
+        text: `${plan.name} — ${plan.title}.\nTap Pay to confirm this demo renewal. Nothing is charged.`,
       },
       footer: { text: 'Demo only. No charge.' },
       action: {
-        buttons: [{ type: 'reply', reply: { id: PAY_BUTTON_ID, title: 'Pay ₹499' } }],
+        buttons: [{ type: 'reply', reply: { id: PAY_BUTTON_ID, title: `Pay ${plan.title.split(' ')[0]}` } }],
       },
     },
   };
@@ -80,26 +130,33 @@ function hasPending(toPhoneNumber) {
   return pending.has(toPhoneNumber);
 }
 
-async function sendMockCheckout(toPhoneNumber) {
+async function sendMenu(toPhoneNumber) {
+  console.log(`[Menu] plans → ${toPhoneNumber}`);
+  return postMessage(buildMenu(toPhoneNumber), 'Menu');
+}
+
+async function sendMockCheckout(toPhoneNumber, plan = PLANS[1]) {
   const referenceId = `ORD${Date.now()}`;
-  console.log(`[Payload Sent] mock order_details → ${toPhoneNumber} ref=${referenceId}`);
+  console.log(`[Payload Sent] mock order_details → ${toPhoneNumber} ref=${referenceId} plan=${plan.id}`);
   try {
-    const sent = await postMessage(buildMockCheckout(toPhoneNumber, referenceId), 'Payload Sent');
-    pending.set(toPhoneNumber, referenceId);
+    const sent = await postMessage(buildMockCheckout(toPhoneNumber, referenceId, plan), 'Payload Sent');
+    pending.set(toPhoneNumber, { referenceId, plan });
     return sent;
   } catch (err) {
     const code = err.response?.data?.error?.code;
     console.log(`[Payload Sent] order_details rejected (${code || 'error'}). Sending the pay button.`);
-    return postMessage(buildPayButton(toPhoneNumber), 'Payload Sent');
+    pending.set(toPhoneNumber, { plan });
+    return postMessage(buildPayButton(toPhoneNumber, plan), 'Payload Sent');
   }
 }
 
 async function sendMockReceipt(toPhoneNumber) {
-  const referenceId = pending.get(toPhoneNumber);
+  const order = pending.get(toPhoneNumber);
   pending.delete(toPhoneNumber);
-  if (referenceId) {
-    console.log(`[Payment Captured] mock ref=${referenceId} wa_id=${toPhoneNumber}`);
-    return sendOrderStatus(toPhoneNumber, referenceId);
+  const text = receiptText(order?.plan);
+  if (order?.referenceId) {
+    console.log(`[Payment Captured] mock ref=${order.referenceId} wa_id=${toPhoneNumber}`);
+    return sendOrderStatus(toPhoneNumber, order.referenceId, text);
   }
   console.log(`[Payment Captured] mock button wa_id=${toPhoneNumber}`);
   console.log(`[Receipt Sent] mock receipt → ${toPhoneNumber}`);
@@ -109,7 +166,7 @@ async function sendMockReceipt(toPhoneNumber) {
       recipient_type: 'individual',
       to: toPhoneNumber,
       type: 'text',
-      text: { body: 'Recharge Successful! Your 2.5GB/day plan is now active.' },
+      text: { body: text },
     },
     'Receipt Sent'
   );
@@ -117,9 +174,13 @@ async function sendMockReceipt(toPhoneNumber) {
 
 module.exports = {
   PAY_BUTTON_ID,
+  PLANS,
+  buildMenu,
   buildMockCheckout,
   buildPayButton,
   hasPending,
+  matchPlan,
+  sendMenu,
   sendMockCheckout,
   sendMockReceipt,
   upiLink,

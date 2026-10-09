@@ -12,7 +12,7 @@ function buildOrderDetails(to, referenceId) {
     type: 'interactive',
     interactive: {
       type: 'order_details',
-      body: { text: 'Airtel ₹499 Prepaid Plan — 2.5GB/day. Tap Review and Pay to recharge.' },
+      body: { text: 'Wheelz Tracker Standard renewal — ₹499 for 28 days. Tap Review and Pay.' },
       action: {
         name: 'review_and_pay',
         parameters: {
@@ -33,7 +33,7 @@ function buildOrderDetails(to, referenceId) {
             status: 'pending',
             items: [
               {
-                name: 'Airtel ₹499 Prepaid Plan',
+                name: 'Wheelz Tracker Standard',
                 amount: PLAN,
                 quantity: 1,
                 country_of_origin: 'IN',

@@ -1,7 +1,7 @@
 const assert = require('assert');
 const { buildOrderDetails } = require('./src/orderDetails');
 const { buildOrderStatus } = require('./src/orderStatus');
-const { buildMockCheckout, upiLink } = require('./src/mock');
+const { buildMenu, buildMockCheckout, buildPayButton, matchPlan, upiLink } = require('./src/mock');
 const { extractEvent } = require('./src/webhook');
 
 process.env.PAYMENT_CONFIG = 'test-config';
@@ -22,7 +22,7 @@ assert.strictEqual(
   params.order.subtotal.value + params.order.tax.value
 );
 assert.strictEqual(params.order.status, 'pending');
-assert.strictEqual(params.order.items[0].name, 'Airtel ₹499 Prepaid Plan');
+assert.strictEqual(params.order.items[0].name, 'Wheelz Tracker Standard');
 assert.strictEqual(params.payment_type, undefined);
 
 const mock = buildMockCheckout('919800000000', 'ORD1');
@@ -34,6 +34,19 @@ assert.strictEqual(mockParams.reference_id, 'ORD1');
 assert.strictEqual(mockParams.payment_settings[0].upi_intent_link.link, upiLink('ORD1'));
 assert.ok(upiLink('ORD1').includes('pa=mockdemo@upi'));
 assert.ok(!upiLink('ORD1').includes('am='));
+assert.strictEqual(matchPlan('2').id, 'plan_499');
+assert.strictEqual(matchPlan('999').value, 99900);
+assert.strictEqual(matchPlan('hi'), null);
+
+const menu = buildMenu('919800000000');
+assert.strictEqual(menu.interactive.type, 'list');
+assert.strictEqual(menu.interactive.action.sections[0].rows.length, 3);
+assert.ok(menu.interactive.action.button.length <= 20);
+
+const pay = buildPayButton('919800000000', matchPlan('1'));
+assert.strictEqual(pay.interactive.action.buttons[0].reply.id, 'pay');
+assert.ok(pay.interactive.action.buttons[0].reply.title.length <= 20);
+assert.strictEqual(buildMockCheckout('919800000000', 'ORD1', matchPlan('199')).interactive.action.parameters.total_amount.value, 19900);
 
 const status = buildOrderStatus('919800000000', 'ORD_1');
 assert.strictEqual(status.interactive.type, 'order_status');
@@ -41,7 +54,7 @@ assert.strictEqual(status.interactive.action.name, 'review_order');
 assert.strictEqual(status.interactive.action.parameters.order.status, 'completed');
 assert.strictEqual(
   status.interactive.body.text,
-  'Recharge Successful! Your 2.5GB/day plan is now active.'
+  'Renewal successful! Your Wheelz Tracker plan is now active.'
 );
 
 const text = extractEvent({
