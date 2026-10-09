@@ -1,6 +1,8 @@
 const express = require('express');
+const { isMock } = require('./mode');
 const { sendOrderDetails } = require('./orderDetails');
 const { sendOrderStatus } = require('./orderStatus');
+const { PAY_BUTTON_ID, hasPending, sendMockCheckout, sendMockReceipt } = require('./mock');
 
 // Text from the user, or a payment update. Status callbacks (sent/delivered/read) return null.
 function extractEvent(body) {
@@ -10,6 +12,11 @@ function extractEvent(body) {
   const message = value.messages?.[0];
   if (message?.type === 'text' && message.from) {
     return { kind: 'text', from: message.from, text: message.text?.body || '' };
+  }
+
+  const button = message?.interactive?.button_reply;
+  if (message?.type === 'interactive' && button && message.from) {
+    return { kind: 'button', from: message.from, id: button.id, title: button.title };
   }
 
   if (message?.payment) {
@@ -42,7 +49,18 @@ async function handleWebhook(body) {
 
   if (event.kind === 'text') {
     console.log(`[Incoming Message] ${event.from}: ${event.text}`);
-    await sendOrderDetails(event.from);
+    if (isMock() && hasPending(event.from) && event.text.trim().toLowerCase() === 'paid') {
+      await sendMockReceipt(event.from);
+      return;
+    }
+    if (isMock()) await sendMockCheckout(event.from);
+    else await sendOrderDetails(event.from);
+    return;
+  }
+
+  if (event.kind === 'button' && event.id === PAY_BUTTON_ID) {
+    console.log(`[Incoming Message] ${event.from}: ${event.title}`);
+    await sendMockReceipt(event.from);
     return;
   }
 

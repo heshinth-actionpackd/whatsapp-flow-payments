@@ -1,17 +1,20 @@
 const assert = require('assert');
 const { buildOrderDetails } = require('./src/orderDetails');
 const { buildOrderStatus } = require('./src/orderStatus');
+const { buildMockCheckout, upiLink } = require('./src/mock');
 const { extractEvent } = require('./src/webhook');
 
 process.env.PAYMENT_CONFIG = 'test-config';
 process.env.PAYMENT_GATEWAY = 'razorpay';
+process.env.MOCK_PAYMENTS = 'false';
 
 const details = buildOrderDetails('919800000000', 'ORD_1');
 const params = details.interactive.action.parameters;
+const gateway = params.payment_settings[0].payment_gateway;
 assert.strictEqual(details.interactive.type, 'order_details');
 assert.strictEqual(details.interactive.action.name, 'review_and_pay');
-assert.strictEqual(params.payment_type, 'in');
-assert.strictEqual(params.payment_configuration, 'test-config');
+assert.strictEqual(gateway.type, 'razorpay');
+assert.strictEqual(gateway.configuration_name, 'test-config');
 assert.strictEqual(params.currency, 'INR');
 assert.strictEqual(params.total_amount.value, 49900);
 assert.strictEqual(
@@ -20,6 +23,17 @@ assert.strictEqual(
 );
 assert.strictEqual(params.order.status, 'pending');
 assert.strictEqual(params.order.items[0].name, 'Airtel ₹499 Prepaid Plan');
+assert.strictEqual(params.payment_type, undefined);
+
+const mock = buildMockCheckout('919800000000', 'ORD1');
+const mockParams = mock.interactive.action.parameters;
+assert.strictEqual(mock.interactive.type, 'order_details');
+assert.strictEqual(mock.interactive.action.name, 'review_and_pay');
+assert.strictEqual(mockParams.payment_settings[0].type, 'upi_intent_link');
+assert.strictEqual(mockParams.reference_id, 'ORD1');
+assert.strictEqual(mockParams.payment_settings[0].upi_intent_link.link, upiLink('ORD1'));
+assert.ok(upiLink('ORD1').includes('pa=mockdemo@upi'));
+assert.ok(!upiLink('ORD1').includes('am='));
 
 const status = buildOrderStatus('919800000000', 'ORD_1');
 assert.strictEqual(status.interactive.type, 'order_status');
@@ -34,6 +48,22 @@ const text = extractEvent({
   entry: [{ changes: [{ value: { messages: [{ from: '9198', type: 'text', text: { body: 'Hi' } }] } }] }],
 });
 assert.deepStrictEqual(text, { kind: 'text', from: '9198', text: 'Hi' });
+
+const tapped = extractEvent({
+  entry: [{
+    changes: [{
+      value: {
+        messages: [{
+          from: '9198',
+          type: 'interactive',
+          interactive: { type: 'button_reply', button_reply: { id: 'pay_499', title: 'Pay ₹499' } },
+        }],
+      },
+    }],
+  }],
+});
+assert.strictEqual(tapped.kind, 'button');
+assert.strictEqual(tapped.id, 'pay_499');
 
 const captured = extractEvent({
   entry: [{

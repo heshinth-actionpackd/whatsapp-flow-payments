@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 async function postMessage(payload, label) {
-  const url = `https://graph.facebook.com/v20.0/${process.env.PHONE_NUMBER_ID}/messages`;
+  const url = `https://graph.facebook.com/v26.0/${process.env.PHONE_NUMBER_ID}/messages`;
   try {
     const { data } = await axios.post(url, payload, {
       headers: {

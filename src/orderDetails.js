@@ -1,4 +1,5 @@
 const { postMessage } = require('./graph');
+const { configurationName } = require('./mode');
 
 const PLAN = { value: 49900, offset: 100 };
 const NO_TAX = { value: 0, offset: 100, description: 'Included' };
@@ -17,14 +18,12 @@ function buildOrderDetails(to, referenceId) {
         parameters: {
           reference_id: referenceId,
           type: 'digital-goods',
-          payment_type: 'in',
-          payment_configuration: process.env.PAYMENT_CONFIG,
           payment_settings: [
             {
               type: 'payment_gateway',
               payment_gateway: {
                 type: process.env.PAYMENT_GATEWAY || 'razorpay',
-                configuration_name: process.env.PAYMENT_CONFIG,
+                configuration_name: configurationName(),
               },
             },
           ],
